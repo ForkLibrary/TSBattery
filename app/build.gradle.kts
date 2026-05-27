@@ -64,6 +64,7 @@ dependencies {
     implementation(libs.yukihookapi)
     ksp(libs.yukihookapi.ksp.xposed)
     ksp(libs.hikage.compiler)
+    implementation(platform(libs.kavaref.bom))
     implementation(libs.kavaref.core)
     implementation(libs.kavaref.extension)
     implementation(libs.hikage.core)
