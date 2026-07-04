@@ -27,25 +27,26 @@ import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
 import android.widget.FrameLayout
+import androidx.activity.ComponentActivity
 import androidx.annotation.CallSuper
-import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.WindowCompat
 import com.fankes.tsbattery.R
 import com.fankes.tsbattery.utils.factory.isNotSystemInDarkMode
+import com.highcapable.yukihookapi.hook.factory.injectModuleAppResources
 import com.highcapable.yukihookapi.hook.xposed.parasitic.activity.proxy.ModuleActivity
 import android.R as Android_R
 
-abstract class BaseActivity2 : AppCompatActivity(), ModuleActivity {
+abstract class BaseActivity2 : ComponentActivity(), ModuleActivity {
 
     override val moduleTheme get() = R.style.Theme_TSBattery
 
     @CallSuper
     override fun onCreate(savedInstanceState: Bundle?) {
         delegate.onCreate(savedInstanceState)
+        injectModuleAppResources()
         super.onCreate(savedInstanceState)
-        /** 隐藏系统的标题栏 */
-        supportActionBar?.hide()
+        injectModuleAppResources()
         /** 初始化沉浸状态栏 */
         WindowCompat.getInsetsController(window, window.decorView).apply {
             isAppearanceLightStatusBars = isNotSystemInDarkMode

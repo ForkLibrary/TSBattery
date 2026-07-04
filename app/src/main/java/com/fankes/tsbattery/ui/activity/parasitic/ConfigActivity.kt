@@ -35,6 +35,7 @@ import androidx.core.view.updateMargins
 import androidx.core.view.updateMarginsRelative
 import androidx.core.view.updatePadding
 import com.fankes.projectpromote.ProjectPromote
+import com.fankes.tsbattery.BuildConfig
 import com.fankes.tsbattery.R
 import com.fankes.tsbattery.const.ModuleVersion
 import com.fankes.tsbattery.const.PackageName
@@ -60,12 +61,16 @@ import com.highcapable.betterandroid.ui.extension.view.tooltipTextCompat
 import com.highcapable.betterandroid.ui.extension.view.updateMargins
 import com.highcapable.betterandroid.ui.extension.view.updatePadding
 import com.highcapable.betterandroid.ui.extension.view.updateTypeface
+import com.highcapable.hikage.core.attribute.android
+import com.highcapable.hikage.core.layout.LayoutParams
 import com.highcapable.hikage.extension.setContentView
+import com.highcapable.hikage.runtime.attribute.AttributeSetResolver
+import com.highcapable.hikage.runtime.attribute.entity.AttributeResolverParams
 import com.highcapable.hikage.widget.android.widget.ImageView
 import com.highcapable.hikage.widget.android.widget.LinearLayout
+import com.highcapable.hikage.widget.android.widget.ScrollView
 import com.highcapable.hikage.widget.android.widget.TextView
 import com.highcapable.hikage.widget.androidx.cardview.widget.CardView
-import com.highcapable.hikage.widget.androidx.core.widget.NestedScrollView
 import com.highcapable.hikage.widget.com.fankes.tsbattery.ui.widget.MaterialSwitch
 import com.highcapable.yukihookapi.YukiHookAPI
 import com.highcapable.yukihookapi.hook.factory.classOf
@@ -80,12 +85,17 @@ class ConfigActivity : BaseActivity2() {
     private lateinit var itemQQTimConfig: LinearLayout
 
     override fun onCreate() {
+        AttributeSetResolver.defaultResolverParams = AttributeResolverParams(
+            resourcePackageName = BuildConfig.APPLICATION_ID
+        )
         setContentView {
             LinearLayout(
                 lparams = LayoutParams(matchParent = true),
-                init = {
-                    orientation = LinearLayout.VERTICAL
-                    setBackgroundResource(R.color.colorThemeBackground)
+                attrs = {
+                    android {
+                        set("orientation", "vertical")
+                        set("background", "@color/colorThemeBackground")
+                    }
                 }
             ) {
                 LinearLayout(
@@ -122,12 +132,16 @@ class ConfigActivity : BaseActivity2() {
                     ImageView(
                         lparams = LayoutParams(23.dp, 23.dp) {
                             marginEnd = 10.dp
+                        },
+                        attrs = {
+                            android {
+                                set("src", "@drawable/ic_icon")
+                                set("tint", "@color/colorTextGray")
+                            }
                         }
                     ) {
                         setPadding(1.dp)
-                        imageTintList = stateColorResource(R.color.colorTextGray)
                         tooltipTextCompat = "打开模块主界面"
-                        setImageResource(R.drawable.ic_icon)
                         background = getThemeAttrsDrawable(Android_R.attr.selectableItemBackgroundBorderless)
                         setOnClickListener {
                             showDialog {
@@ -150,13 +164,15 @@ class ConfigActivity : BaseActivity2() {
                         }
                     }
                 }
-                NestedScrollView(
+                ScrollView(
                     lparams = LayoutParams(matchParent = true),
-                    init = {
-                        setFadingEdgeLength(10.dp)
-                        isVerticalFadingEdgeEnabled = true
-                        isVerticalScrollBarEnabled = false
-                        isHorizontalScrollBarEnabled = false
+                    attrs = {
+                        android {
+                            set("fillViewport", true)
+                            set("scrollbars", "none")
+                            set("requiresFadingEdge", "vertical")
+                            set("fadingEdgeLength", 15.dp)
+                        }
                     }
                 ) {
                     LinearLayout(

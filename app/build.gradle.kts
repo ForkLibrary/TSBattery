@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.ksp)
+    alias(libs.plugins.hikage)
 }
 
 android {
@@ -63,12 +64,14 @@ dependencies {
     compileOnly(libs.rovo89.xposed.api)
     implementation(libs.yukihookapi)
     ksp(libs.yukihookapi.ksp.xposed)
-    ksp(libs.hikage.compiler)
     implementation(platform(libs.kavaref.bom))
     implementation(libs.kavaref.core)
     implementation(libs.kavaref.android)
     implementation(libs.kavaref.extension)
+    implementation(platform(libs.hikage.bom))
     implementation(libs.hikage.core)
+    implementation(libs.hikage.runtime)
+    implementation(libs.hikage.runtime.attribute)
     implementation(libs.hikage.extension)
     implementation(libs.hikage.widget.androidx)
     implementation(libs.hikage.widget.material)

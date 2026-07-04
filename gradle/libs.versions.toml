@@ -6,14 +6,11 @@ project-promote = "1.0.1"
 rovo89-xposed-api = "82"
 yukihookapi = "1.3.2"
 kavaref-bom = "1.1.0"
-hikage-core = "1.0.4"
-hikage-compiler = "1.0.4"
-hikage-extension = "1.0.3"
-hikage-widget-androidx = "1.0.2"
-hikage-widget-material = "1.0.2"
+hikage-plugin = "1.0.0"
+hikage-bom = "1.1.0"
 dexkit = "2.2.0"
 drawabletoolbox = "1.0.7"
-okhttp = "5.3.2"
+okhttp = "5.4.0"
 androidx-core-ktx = "1.19.0"
 androidx-appcompat = "1.7.1"
 # noinspection GradleDependency
@@ -26,6 +23,7 @@ androidx-test-espresso-core = "3.7.0"
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 android-application = { id = "com.android.application", version.ref = "agp" }
+hikage = { id = "com.highcapable.hikage", version.ref = "hikage-plugin" }
 kotlin-ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 
 [libraries]
@@ -37,11 +35,13 @@ kavaref-bom = { group = "com.highcapable.kavaref", name = "kavaref-bom", version
 kavaref-core = { group = "com.highcapable.kavaref", name = "kavaref-core" }
 kavaref-android = { group = "com.highcapable.kavaref", name = "kavaref-android" }
 kavaref-extension = { group = "com.highcapable.kavaref", name = "kavaref-extension" }
-hikage-core = { group = "com.highcapable.hikage", name = "hikage-core", version.ref = "hikage-core" }
-hikage-compiler = { group = "com.highcapable.hikage", name = "hikage-compiler", version.ref = "hikage-compiler" }
-hikage-extension = { group = "com.highcapable.hikage", name = "hikage-extension", version.ref = "hikage-extension" }
-hikage-widget-androidx = { group = "com.highcapable.hikage", name = "hikage-widget-androidx", version.ref = "hikage-widget-androidx" }
-hikage-widget-material = { group = "com.highcapable.hikage", name = "hikage-widget-material", version.ref = "hikage-widget-material" }
+hikage-bom = { group = "com.highcapable.hikage", name = "hikage-bom", version.ref = "hikage-bom" }
+hikage-core = { group = "com.highcapable.hikage", name = "hikage-core" }
+hikage-runtime = { group = "com.highcapable.hikage", name = "hikage-runtime" }
+hikage-runtime-attribute = { group = "com.highcapable.hikage", name = "hikage-runtime-attribute" }
+hikage-extension = { group = "com.highcapable.hikage", name = "hikage-extension" }
+hikage-widget-androidx = { group = "com.highcapable.hikage", name = "hikage-widget-androidx" }
+hikage-widget-material = { group = "com.highcapable.hikage", name = "hikage-widget-material" }
 dexkit = { group = "org.luckypray", name = "dexkit", version.ref = "dexkit" }
 drawabletoolbox = { group = "com.github.duanhong169", name = "drawabletoolbox", version.ref = "drawabletoolbox" }
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
