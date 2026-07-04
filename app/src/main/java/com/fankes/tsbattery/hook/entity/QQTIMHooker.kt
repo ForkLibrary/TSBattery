@@ -40,6 +40,8 @@ import com.fankes.tsbattery.const.ModuleVersion
 import com.fankes.tsbattery.const.PackageName
 import com.fankes.tsbattery.data.ConfigData
 import com.fankes.tsbattery.hook.HookEntry
+import com.fankes.tsbattery.hook.entity.QQTIMHooker.AboutActivityClass
+import com.fankes.tsbattery.hook.entity.QQTIMHooker.BaseChatPieClass
 import com.fankes.tsbattery.hook.factory.hookSystemWakeLock
 import com.fankes.tsbattery.hook.factory.isQQNightMode
 import com.fankes.tsbattery.hook.factory.jumpToModuleSettings
@@ -47,6 +49,8 @@ import com.fankes.tsbattery.hook.factory.startModuleSettings
 import com.fankes.tsbattery.hook.helper.DexKitHelper
 import com.fankes.tsbattery.utils.factory.appVersionName
 import com.fankes.tsbattery.utils.factory.dp
+import com.highcapable.betterandroid.ui.extension.view.ViewLayoutParams
+import com.highcapable.betterandroid.ui.extension.view.parentOrNull
 import com.highcapable.kavaref.KavaRef.Companion.asResolver
 import com.highcapable.kavaref.KavaRef.Companion.resolve
 import com.highcapable.kavaref.extension.ArrayClass
@@ -54,6 +58,7 @@ import com.highcapable.kavaref.extension.VariousClass
 import com.highcapable.kavaref.extension.classOf
 import com.highcapable.kavaref.extension.createInstanceAsTypeOrNull
 import com.highcapable.kavaref.extension.createInstanceOrNull
+import com.highcapable.kavaref.resolver.MethodResolver
 import com.highcapable.yukihookapi.hook.entity.YukiBaseHooker
 import com.highcapable.yukihookapi.hook.factory.injectModuleAppResources
 import com.highcapable.yukihookapi.hook.factory.registerModuleAppActivities
@@ -90,6 +95,12 @@ object QQTIMHooker : YukiBaseHooker() {
     /** QQ 新版本 (NT) 存在的类 */
     private val MainSettingConfigProviderClass by lazyClassOrNull("${PackageName.QQ}.setting.main.MainSettingConfigProvider")
 
+    /** QQ 新版本 (NT) 存在的类 */
+    private val NewSettingConfigProviderClass by lazyClassOrNull("${PackageName.QQ}.setting.main.NewSettingConfigProvider")
+
+    /** QQ 新版本 (NT) 存在的混淆类 */
+    private val NewSettingConfigProviderObfuscatedClass by lazyClassOrNull("${PackageName.QQ}.setting.main.b")
+
     /** QQ、TIM 新版本存在的类 */
     private val FormSimpleItemClass by lazyClassOrNull("${PackageName.QQ}.widget.FormSimpleItem")
 
@@ -119,8 +130,8 @@ object QQTIMHooker : YukiBaseHooker() {
     private object DexKitData {
         var BaseChatPie_RemainScreenOnMethod: Method? = null
         var BaseChatPie_CancelRemainScreenOnMethod: Method? = null
-        var SimpleItemProcessorClass: Class<*>? = null
-        var SimpleItemProcessorClass_OnClickMethod: Method? = null
+        var SimpleItemProcessorClass: Class<Any>? = null
+        var SimpleItemProcessorClass_OnClickMethod: MethodResolver<Any>? = null
     }
 
     /** 一个内部进程的名称 (与 X5 浏览器内核有关) */
@@ -150,9 +161,8 @@ object QQTIMHooker : YukiBaseHooker() {
      * 通过 [Activity] or [Fragment] 实例得到上下文
      * @return [Activity] or null
      */
-    private fun Any.compatToActivity() = if (this !is Activity)
-        asResolver().optional().firstMethodOrNull { name = "getActivity"; superclass() }?.invoke()
-    else this
+    private fun Any.compatToActivity() = this as? Activity
+        ?: asResolver().optional().firstMethodOrNull { name = "getActivity"; superclass() }?.invoke()
 
     /** 使用 DexKit 进行搜索 */
     private fun searchUsingDexKit() {
@@ -179,7 +189,7 @@ object QQTIMHooker : YukiBaseHooker() {
                     }.singleOrNull()?.getMethodInstance(classLoader)
             }
             val kotlinFunction0 = "kotlin.jvm.functions.Function0"
-            findClass {
+            val simpleItemProcessorClassFromClass = findClass {
                 searchPackages("${PackageName.QQ}.setting.processor")
                 matcher {
                     methods {
@@ -194,20 +204,56 @@ object QQTIMHooker : YukiBaseHooker() {
                     }
                     fields { count(6..Int.MAX_VALUE) }
                 }
-            }.singleOrNull()?.name?.also { className ->
-                DexKitData.SimpleItemProcessorClass = className.toClass()
-                DexKitData.SimpleItemProcessorClass_OnClickMethod =
-                    findMethod {
-                        matcher {
-                            declaredClass = className
-                            paramTypes(kotlinFunction0)
-                            returnType = Void.TYPE.name
-                            usingNumbers(2)
-                        }
-                    }.singleOrNull()?.getMethodInstance(classLoader)
+            }.singleOrNull()?.name?.toClass()
+            val simpleItemProcessorClassFromString = findMethod {
+                matcher { usingStrings("SimpleItemProcessor") }
+            }.singleOrNull()?.getMethodInstance(classLoader)?.declaringClass?.name?.toClassOrNull()
+            findSimpleItemProcessorClass(simpleItemProcessorClassFromClass, simpleItemProcessorClassFromString)?.also { clazz ->
+                DexKitData.SimpleItemProcessorClass = clazz
+                DexKitData.SimpleItemProcessorClass_OnClickMethod = clazz.findSimpleItemProcessorOnClickMethod(kotlinFunction0)
             }
         }
     }
+
+    /** 查找 `SimpleItemProcessor` 的父类 */
+    private fun findAbstractItemProcessorClass() = arrayOf(
+        "${PackageName.QQ}.setting.main.processor.AccountSecurityItemProcessor",
+        "${PackageName.QQ}.setting.main.processor.AboutItemProcessor"
+    ).firstNotNullOfOrNull { it.toClassOrNull()?.superclass }
+
+    /**
+     * 查找设置入口 `Item` 处理器类
+     *
+     * 最新 QQ 中类名会在短混淆名和真实类名之间变化，这里参考 QAuxiliary 使用候选列表与父类校验兜底。
+     * @param classes DexKit 额外命中的类
+     * @return [Class] or null
+     */
+    private fun findSimpleItemProcessorClass(vararg classes: Class<Any>?): Class<Any>? {
+        val abstractItemProcessorClass = findAbstractItemProcessorClass()
+        val candidates = arrayListOf<Class<Any>>().apply {
+            arrayOf(
+                "${PackageName.QQ}.setting.processor.g",
+                "${PackageName.QQ}.setting.processor.h",
+                "${PackageName.QQ}.setting.processor.i",
+                "${PackageName.QQ}.setting.processor.j",
+                "${PackageName.QQ}.setting.processor.SimpleItemProcessor",
+                "as3.i"
+            ).mapNotNull { it.toClassOrNull() }.forEach(::add)
+            classes.filterNotNull().forEach(::add)
+        }.distinct().filter { abstractItemProcessorClass == null || it.superclass == abstractItemProcessorClass }
+        return candidates.singleOrNull() ?: classes.filterNotNull().firstOrNull { it in candidates } ?: candidates.firstOrNull()
+    }
+
+    /**
+     * 查找 `SimpleItemProcessor` 的点击方法
+     * @param kotlinFunction0 Kotlin Function0 类名
+     * @return [MethodResolver] or null
+     */
+    private fun Class<Any>.findSimpleItemProcessorOnClickMethod(kotlinFunction0: String) =
+        resolve().optional().method {
+            parameters(kotlinFunction0)
+            returnType = Void.TYPE
+        }.minByOrNull { it.self.name }
 
     /**
      * 这个类 QQ 的 BaseChatPie 是控制聊天界面的
@@ -464,30 +510,34 @@ object QQTIMHooker : YukiBaseHooker() {
             /** 为了使用图标资源 ID - 这里需要重新注入模块资源防止不生效 */
             context.injectModuleAppResources()
             val iconResId = if (context.isQQNightMode()) R.mipmap.ic_tsbattery_entry_night else R.mipmap.ic_tsbattery_entry_day
-            return simpleItemProcessorClass.createInstanceOrNull(context, R.id.tsbattery_qq_entry_item_id, "TSBattery", iconResId)?.also { item ->
+            return (
+                simpleItemProcessorClass.createInstanceOrNull(context, R.id.tsbattery_qq_entry_item_id, "TSBattery", iconResId, null)
+                    ?: simpleItemProcessorClass.createInstanceOrNull(context, R.id.tsbattery_qq_entry_item_id, "TSBattery", iconResId)
+            )?.also { item ->
                 val onClickMethod = DexKitData.SimpleItemProcessorClass_OnClickMethod ?: error("Could not found processor method")
-                val proxyOnClick = Proxy.newProxyInstance(appClassLoader, arrayOf(onClickMethod.parameterTypes[0])) { any, method, args ->
+                val proxyOnClick = Proxy.newProxyInstance(appClassLoader, arrayOf(onClickMethod.self.parameterTypes[0])) { any, method, args ->
                     if (method.name == "invoke") {
                         context.startModuleSettings()
                         kotlinUnit.toClass().resolve().firstField { name = "INSTANCE" }.get()
                     } else method.invoke(any, args)
-                }; onClickMethod.invoke(item, proxyOnClick)
+                }; onClickMethod.copy().of(item).invoke(proxyOnClick)
             } ?: error("Could not create TSBattery entry item")
         }
-        MainSettingConfigProviderClass?.resolve()?.optional()?.firstMethodOrNull {
-            parameters(Context::class)
-            returnType = List::class
-        }?.hook()?.after {
-            val context = args().first().cast<Context>() ?: return@after
-            val processor = result<MutableList<Any?>>() ?: return@after
-            processor.add(
-                1,
-                processor[0]?.javaClass?.createInstanceOrNull(
-                    arrayListOf<Any>().apply { 
-                        add(createTSEntryItem(context))
-                    }.toList(), "", ""
-                )
-            )
+        arrayOf(MainSettingConfigProviderClass, NewSettingConfigProviderClass, NewSettingConfigProviderObfuscatedClass).forEach { providerClass ->
+            providerClass?.resolve()?.optional()?.firstMethodOrNull {
+                parameters(Context::class)
+                returnType = List::class
+            }?.hook()?.after {
+                val context = args().first().cast<Context>() ?: return@after
+                val processor = result<MutableList<Any?>>() ?: return@after
+                val itemList = arrayListOf(createTSEntryItem(context)).toList()
+                val groupClass = processor.firstOrNull()?.javaClass ?: return@after
+                val group = groupClass.createInstanceOrNull(itemList, "", "", 6, null)
+                    ?: groupClass.createInstanceOrNull(itemList, "", "")
+                    ?: return@after
+                val insertIndex = if (providerClass.name.contains("NewSettingConfigProvider")) 2 else 1
+                processor.add(insertIndex.coerceAtMost(processor.size), group)
+            }
         }
     }
 
@@ -519,12 +569,11 @@ object QQTIMHooker : YukiBaseHooker() {
         }
         item ?: return
         item.setOnClickListener { it.context.startModuleSettings() }
-        var listGroup = formItemRefRoot?.parent as? ViewGroup?
+        var listGroup = formItemRefRoot?.parentOrNull()
         val lparam = (if (listGroup?.childCount == 1) {
-            listGroup = listGroup.parent as? ViewGroup
+            listGroup = listGroup.parentOrNull()
             (formItemRefRoot?.parent as? View?)?.layoutParams
-        } else formItemRefRoot?.layoutParams)
-            ?: ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+        } else formItemRefRoot?.layoutParams) ?: ViewLayoutParams(widthMatchParent = true)
         /** 设置圆角和间距 */
         if (isQQ) (lparam as? ViewGroup.MarginLayoutParams?)?.setMargins(0, 15.dp(item.context), 0, 0)
         /** 将 Item 添加到设置界面 */
