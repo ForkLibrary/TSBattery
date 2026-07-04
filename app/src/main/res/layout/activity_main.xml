@@ -406,6 +406,7 @@
                     android:id="@+id/hide_icon_in_launcher_switch"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:paddingVertical="10dp"
                     android:text="在桌面隐藏模块图标"
                     android:textColor="@color/colorTextGray"
                     android:textSize="15sp" />
